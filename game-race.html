@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Shuvo's 2D Racing Game</title>
+  <style>
+    body { margin: 0; background: #111; overflow: hidden; }
+    canvas { display: block; margin: auto; background: #333; }
+    #gameOver, #restartBtn, #backBtn {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      display: none;
+    }
+    #gameOver {
+      top: 30%;
+      font-size: 2.5em;
+      color: red;
+      font-family: sans-serif;
+    }
+    #restartBtn, #backBtn {
+      padding: 10px 20px;
+      background: #00b894;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1em;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    #restartBtn { top: 48%; }
+    #backBtn { top: 58%; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="500" height="700"></canvas>
+  <div id="gameOver">💥 Crash! Game Over, Shuvo!</div>
+  <button id="restartBtn">Restart</button>
+  <button id="backBtn" onclick="location.href='index.html'">⬅ Home</button>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    let car = { x: 220, y: 600, w: 50, h: 80 };
+    let obstacles = [];
+    let keys = {};
+    let gameRunning = true;
+    let speed = 5;
+    let score = 0;
+
+    const restartBtn = document.getElementById("restartBtn");
+    const gameOverDiv = document.getElementById("gameOver");
+    const backBtn = document.getElementById("backBtn");
+
+    function drawCar() {
+      ctx.fillStyle = "#00ffcc";
+      ctx.fillRect(car.x, car.y, car.w, car.h);
+    }
+
+    function createObstacle() {
+      const x = Math.random() * (canvas.width - 50);
+      obstacles.push({ x: x, y: -100, w: 50, h: 80 });
+    }
+
+    function drawObstacles() {
+      ctx.fillStyle = "#ff4136";
+      obstacles.forEach(obs => ctx.fillRect(obs.x, obs.y, obs.w, obs.h));
+    }
+
+    function updateObstacles() {
+      obstacles.forEach((obs, i) => {
+        obs.y += speed;
+        if (obs.y > canvas.height) {
+          obstacles.splice(i, 1);
+          score++;
+        }
+      });
+    }
+
+    function detectCollision() {
+      for (let obs of obstacles) {
+        if (
+          car.x < obs.x + obs.w &&
+          car.x + car.w > obs.x &&
+          car.y < obs.y + obs.h &&
+          car.y + car.h > obs.y
+        ) {
+          endGame();
+        }
+      }
+    }
+
+    function drawRoad() {
+      ctx.fillStyle = "#555";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.strokeStyle = "#fff";
+      ctx.setLineDash([20, 20]);
+      ctx.beginPath();
+      ctx.moveTo(canvas.width / 2, 0);
+      ctx.lineTo(canvas.width / 2, canvas.height);
+      ctx.stroke();
+      ctx.setLineDash([]);
+    }
+
+    function drawScore() {
+      ctx.fillStyle = "white";
+      ctx.font = "18px sans-serif";
+      ctx.fillText("Score: " + score, 10, 25);
+    }
+
+    function updateCar() {
+      if (keys["ArrowLeft"] && car.x > 0) car.x -= 6;
+      if (keys["ArrowRight"] && car.x + car.w < canvas.width) car.x += 6;
+    }
+
+    function endGame() {
+      gameRunning = false;
+      gameOverDiv.style.display = "block";
+      restartBtn.style.display = "block";
+      backBtn.style.display = "block";
+    }
+
+    function gameLoop() {
+      if (!gameRunning) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawRoad();
+      drawCar();
+      drawObstacles();
+      updateObstacles();
+      updateCar();
+      detectCollision();
+      drawScore();
+      requestAnimationFrame(gameLoop);
+    }
+
+    document.addEventListener("keydown", (e) => keys[e.key] = true);
+    document.addEventListener("keyup", (e) => keys[e.key] = false);
+    restartBtn.onclick = () => location.reload();
+
+    setInterval(() => {
+      if (gameRunning) createObstacle();
+    }, 1500);
+
+    gameLoop();
+  </script>
+</body>
+</html>

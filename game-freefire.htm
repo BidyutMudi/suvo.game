@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Crowd Clash by Suvo</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #111; }
+    canvas { display: block; margin: auto; background: #f0f0f0; }
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-family: sans-serif;
+      color: white;
+      background: rgba(0,0,0,0.4);
+      padding: 10px 20px;
+      border-radius: 10px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="game" width="1000" height="600"></canvas>
+  <div id="hud">Score: <span id="score">0</span> | Time: <span id="time">60</span>s</div>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    const scoreEl = document.getElementById("score");
+    const timeEl = document.getElementById("time");
+
+    const player = {
+      x: 500, y: 300, r: 20, speed: 3,
+      color: "blue", crowd: [], alive: true
+    };
+
+    const keys = {};
+    document.addEventListener("keydown", e => keys[e.key] = true);
+    document.addEventListener("keyup", e => keys[e.key] = false);
+
+    const npcs = [], enemies = [];
+
+    function spawnNPCs(n) {
+      for (let i = 0; i < n; i++) {
+        npcs.push({
+          x: Math.random() * 1000,
+          y: Math.random() * 600,
+          r: 10,
+          collected: false,
+          color: "gray"
+        });
+      }
+    }
+
+    function spawnEnemies(n) {
+      for (let i = 0; i < n; i++) {
+        enemies.push({
+          x: Math.random() * 1000,
+          y: Math.random() * 600,
+          r: 20,
+          color: "red",
+          crowd: [],
+          vx: Math.random() * 2 - 1,
+          vy: Math.random() * 2 - 1
+        });
+      }
+    }
+
+    function movePlayer() {
+      if (keys["ArrowUp"] || keys["w"]) player.y -= player.speed;
+      if (keys["ArrowDown"] || keys["s"]) player.y += player.speed;
+      if (keys["ArrowLeft"] || keys["a"]) player.x -= player.speed;
+      if (keys["ArrowRight"] || keys["d"]) player.x += player.speed;
+    }
+
+    function updateCrowd() {
+      for (let i = 0; i < player.crowd.length; i++) {
+        const leader = i === 0 ? player : player.crowd[i - 1];
+        const c = player.crowd[i];
+        const dx = leader.x - c.x;
+        const dy = leader.y - c.y;
+        const dist = Math.hypot(dx, dy);
+        if (dist > 20) {
+          c.x += dx * 0.05;
+          c.y += dy * 0.05;
+        }
+      }
+    }
+
+    function collectNPCs() {
+      for (let npc of npcs) {
+        if (!npc.collected && Math.hypot(player.x - npc.x, player.y - npc.y) < player.r + npc.r) {
+          npc.collected = true;
+          npc.color = player.color;
+          player.crowd.push({ x: npc.x, y: npc.y, r: 10, color: player.color });
+        }
+      }
+    }
+
+    function drawCircle(x, y, r, color) {
+      ctx.beginPath();
+      const g = ctx.createRadialGradient(x, y, 4, x, y, r);
+      g.addColorStop(0, "#fff");
+      g.addColorStop(1, color);
+      ctx.fillStyle = g;
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function moveEnemies() {
+      for (let e of enemies) {
+        e.x += e.vx;
+        e.y += e.vy;
+        if (e.x < 0 || e.x > 1000) e.vx *= -1;
+        if (e.y < 0 || e.y > 600) e.vy *= -1;
+      }
+    }
+
+    function checkEnemyCollision() {
+      for (let i = enemies.length - 1; i >= 0; i--) {
+        const e = enemies[i];
+        const dist = Math.hypot(player.x - e.x, player.y - e.y);
+        if (dist < player.r + e.r) {
+          if (player.crowd.length > e.crowd.length) {
+            // kill enemy
+            for (let f of e.crowd) {
+              f.color = player.color;
+              player.crowd.push({ ...f });
+            }
+            enemies.splice(i, 1);
+          } else {
+            // player dies
+            player.alive = false;
+          }
+        }
+      }
+    }
+
+    let score = 0;
+    let timeLeft = 60;
+
+    function drawMapGrid() {
+      ctx.strokeStyle = "#ddd";
+      for (let i = 0; i < 1000; i += 100) {
+        ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, 600); ctx.stroke();
+      }
+      for (let i = 0; i < 600; i += 100) {
+        ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(1000, i); ctx.stroke();
+      }
+    }
+
+    function drawScene() {
+      ctx.clearRect(0, 0, 1000, 600);
+      drawMapGrid();
+
+      for (let npc of npcs) {
+        if (!npc.collected) drawCircle(npc.x, npc.y, npc.r, npc.color);
+      }
+
+      for (let enemy of enemies) {
+        drawCircle(enemy.x, enemy.y, enemy.r, enemy.color);
+      }
+
+      for (let f of player.crowd) {
+        drawCircle(f.x, f.y, f.r, f.color);
+      }
+
+      if (player.alive) drawCircle(player.x, player.y, player.r, player.color);
+    }
+
+    function gameLoop() {
+      if (!player.alive) {
+        ctx.fillStyle = "black";
+        ctx.font = "48px sans-serif";
+        ctx.fillText("Game Over", 400, 300);
+        return;
+      }
+
+      movePlayer();
+      moveEnemies();
+      updateCrowd();
+      collectNPCs();
+      checkEnemyCollision();
+
+      score = player.crowd.length;
+      scoreEl.textContent = score;
+
+      drawScene();
+      requestAnimationFrame(gameLoop);
+    }
+
+    spawnNPCs(80);
+    spawnEnemies(3);
+    gameLoop();
+
+    // Timer
+    setInterval(() => {
+      if (player.alive && timeLeft > 0) {
+        timeLeft--;
+        timeEl.textContent = timeLeft;
+      } else if (timeLeft === 0) {
+        player.alive = false;
+      }
+    }, 1000);
+  </script>
+</body>
+</html>
+

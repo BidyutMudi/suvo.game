@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Shuvo's 2D Jump Game</title>
+  <style>
+    body { margin: 0; background: #111; overflow: hidden; font-family: sans-serif; }
+    canvas { display: block; margin: auto; background: linear-gradient(to top, #000000, #333); }
+    #gameOver, #restartBtn, #backBtn {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      text-align: center;
+      display: none;
+    }
+    #gameOver {
+      top: 30%;
+      font-size: 2.5em;
+      color: rgb(255, 149, 0);
+    }
+    #restartBtn, #backBtn {
+      padding: 10px 20px;
+      background: #00b894;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1em;
+      cursor: pointer;
+      margin-top: 12px;
+    }
+    #backBtn {
+      top: 75%;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="400"></canvas>
+  <div id="gameOver">💥 Game Over, Shuvo!</div>
+  <button id="restartBtn">Play Again</button>
+  <button id="backBtn" onclick="location.href='index.html'">⬅ Back to Home</button>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let player = { x: 50, y: 300, w: 40, h: 40, vy: 0, jumpPower: -12, grounded: true };
+    let gravity = 0.7;
+    let obstacles = [];
+    let gameRunning = true;
+    let score = 0;
+
+    const gameOverText = document.getElementById("gameOver");
+    const restartBtn = document.getElementById("restartBtn");
+    const backBtn = document.getElementById("backBtn");
+
+    function drawPlayer() {
+      ctx.fillStyle = '#00ffcc';
+      ctx.fillRect(player.x, player.y, player.w, player.h);
+    }
+
+    function createObstacle() {
+      const width = 20 + Math.random() * 20;
+      obstacles.push({ x: canvas.width, y: 340, w: width, h: 60, speed: 6 });
+    }
+
+    function drawObstacles() {
+      ctx.fillStyle = '#ff4136';
+      for (let obs of obstacles) {
+        ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+      }
+    }
+
+    function updateObstacles() {
+      for (let i = 0; i < obstacles.length; i++) {
+        obstacles[i].x -= obstacles[i].speed;
+        if (obstacles[i].x + obstacles[i].w < 0) {
+          obstacles.splice(i, 1);
+          score++;
+        }
+      }
+    }
+
+    function detectCollision() {
+      for (let obs of obstacles) {
+        if (
+          player.x < obs.x + obs.w &&
+          player.x + player.w > obs.x &&
+          player.y < obs.y + obs.h &&
+          player.y + player.h > obs.y
+        ) {
+          endGame();
+        }
+      }
+    }
+
+    function drawGround() {
+      ctx.fillStyle = "#444";
+      ctx.fillRect(0, 380, canvas.width, 20);
+    }
+
+    function updatePlayer() {
+      player.vy += gravity;
+      player.y += player.vy;
+      if (player.y + player.h > 380) {
+        player.y = 380 - player.h;
+        player.vy = 0;
+        player.grounded = true;
+      }
+    }
+
+    function drawScore() {
+      ctx.fillStyle = "white";
+      ctx.font = "18px sans-serif";
+      ctx.fillText("Score: " + score, 10, 25);
+    }
+
+    function endGame() {
+      gameRunning = false;
+      gameOverText.style.display = "block";
+      restartBtn.style.display = "block";
+      backBtn.style.display = "block";
+    }
+
+    function gameLoop() {
+      if (!gameRunning) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGround();
+      drawPlayer();
+      drawObstacles();
+      updateObstacles();
+      updatePlayer();
+      detectCollision();
+      drawScore();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Spawn obstacles
+    setInterval(() => {
+      if (gameRunning) createObstacle();
+    }, 1500);
+
+    document.addEventListener("keydown", (e) => {
+      if ((e.code === "Space" || e.code === "ArrowUp") && player.grounded) {
+        player.vy = player.jumpPower;
+        player.grounded = false;
+      }
+    });
+
+    restartBtn.onclick = () => location.reload();
+
+    gameLoop();
+  </script>
+</body>
+</html>
